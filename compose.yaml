@@ -1,0 +1,35 @@
+
+services:
+  db:
+    image: cgr.dev/chainguard/postgres:latest
+    container_name: satubinhaDB
+    environment:
+      POSTGRES_DB: satubinha
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: satubinha
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - app-network
+
+  api:
+    build: ./api
+    container_name: satubinhaAPI
+    depends_on:
+      - db
+    networks:
+      - app-network
+  
+  front:
+    build: ./front
+    container_name: satubinhaFRONT
+    ports:
+      - "8081:8080"
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

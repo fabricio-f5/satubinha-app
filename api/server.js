@@ -9,7 +9,7 @@ app.use(express.json());
 const pool = new Pool({
   host: "db",
   user: "postgres",
-  password: "postgres",
+  password: "satubinha",
   database: "satubinha",
   port: 5432,
 });
@@ -27,6 +27,13 @@ app.post("/nome", async (req, res) => {
 app.get("/nomes", async (req, res) => {
   const result = await pool.query("SELECT * FROM pessoas");
   res.json(result.rows);
+});
+
+// deletar registro
+app.delete("/nome/:id", async (req, res) => {
+  const { id } = req.params;
+  await pool.query("DELETE FROM pessoas WHERE id=$1", [id]);
+  res.json({ mensagem: "Registro deletado" });
 });
 
 app.listen(4000, () => console.log("API rodando na porta 4000"));
