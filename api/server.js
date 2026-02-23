@@ -1,15 +1,20 @@
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const dbPassword = fs
+  .readFileSync("/run/secrets/db_password", "utf8")
+  .trim();
+
 const pool = new Pool({
   host: "db",
   user: "postgres",
-  password: "satubinha",
+  password: dbPassword,
   database: "satubinha",
   port: 5432,
 });
@@ -34,6 +39,10 @@ app.delete("/nome/:id", async (req, res) => {
   const { id } = req.params;
   await pool.query("DELETE FROM pessoas WHERE id=$1", [id]);
   res.json({ mensagem: "Registro deletado" });
+});
+
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
 app.listen(4000, () => console.log("API rodando na porta 4000"));

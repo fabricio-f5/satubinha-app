@@ -1,35 +1,83 @@
+name: satubinha-app
 
 services:
   db:
     image: cgr.dev/chainguard/postgres:latest
-    container_name: satubinhaDB
+    container_name: app-DB
+    secrets:
+      - db_password
     environment:
       POSTGRES_DB: satubinha
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: satubinha
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "satubinha"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     volumes:
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+  migrate:
+    image: flyway/flyway:12.0
+    secrets:
+      - db_password      
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/satubinha
+      FLYWAY_USER: postgres
+      FLYWAY_CONNECT_RETRIES: 60
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
+    entrypoint: >
+      /bin/sh -c "
+      export FLYWAY_PASSWORD=$(cat /run/secrets/db_password) &&
+      /flyway/flyway migrate
+      "
+    volumes:
+      - /home/user1/satubinha-app/migrate/migrations:/flyway/migrations
     networks:
       - app-network
 
   api:
     build: ./api
-    container_name: satubinhaAPI
+    container_name: app-API
+    secrets:
+      - db_password      
     depends_on:
-      - db
+      migrate:
+        condition: service_completed_successfully
     networks:
       - app-network
+    healthcheck:
+      test:  ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', res => { process.exit(res.statusCode === 200 ? 0 : 1) })"] 
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s 
   
   front:
     build: ./front
-    container_name: satubinhaFRONT
+    container_name: app-FRONT
     ports:
       - "8081:8080"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - app-network
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  pgdata:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
