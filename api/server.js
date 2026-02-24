@@ -11,11 +11,19 @@ const dbPassword = fs
   .readFileSync("/run/secrets/db_password", "utf8")
   .trim();
 
+const dbName = fs
+  .readFileSync("/run/secrets/db_name", "utf8")
+  .trim();
+
+const dbUser = fs
+  .readFileSync("/run/secrets/db_user", "utf8")
+  .trim();
+
 const pool = new Pool({
   host: "db",
-  user: "postgres",
+  user: dbUser,
   password: dbPassword,
-  database: "satubinha",
+  database: dbName,
   port: 5432,
 });
 
