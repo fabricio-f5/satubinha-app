@@ -1,0 +1,28 @@
+# .dockerignore
+# Dependências (serão instaladas no build)
+node_modules/
+vendor/
+# Artefatos de build locais
+dist/
+build/
+*.o
+*.exe
+# Arquivos de desenvolvimento
+.env
+.env.local
+*.env.*
+# Controle de versão
+.git/
+.gitignore
+# Documentação e testes
+docs/
+*.md
+**/*_test.go
+**/*.test.js
+# Ferramentas de IDE
+.vscode/
+.idea/
+*.DS_Store
+
+secrets/
+*.txt
