@@ -76,8 +76,10 @@ Se retornar status 200, o container é considerado saudável.
 
 ### 1. Criar o secret
 
-mkdir -p secrets
-echo "suasenha123" > secrets/db_password.txt
+mkdir -p .secrets
+echo "seudbname" > .secrets/db_name.txt
+echo "suasenha123" > .secrets/db_password.txt
+echo "seuuser" > .secrets/db_user.txt
 
 ### 2. Subir a aplicação
 
