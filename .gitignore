@@ -1,0 +1,7 @@
+# .gitignore
+secrets/
+*.env
+.env.*
+*.key
+*.pub
+
