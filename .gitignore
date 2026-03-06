@@ -1,5 +1,4 @@
 # .gitignore
-secrets/
 *.env
 .env.*
 *.key
