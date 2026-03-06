@@ -43,7 +43,7 @@ services:
       /flyway/flyway migrate
       "
     volumes:
-      - /home/user1/satubinha-app/migrate/migrations:/flyway/migrations
+      - ./migrate/migrations:/flyway/migrations
     networks:
       - app-network
 
