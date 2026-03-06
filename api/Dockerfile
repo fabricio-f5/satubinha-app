@@ -7,4 +7,6 @@ COPY --chown=node:node ["package.json", "server.js", "./"]
 
 RUN npm install --omit-dev
 
+USER node
+
 CMD [ "server.js" ]

@@ -2,7 +2,7 @@ name: satubinha-app
 
 services:
   db:
-    image: cgr.dev/chainguard/postgres:latest
+    build: ./database
     container_name: app-DB
     secrets:
       - db_password
@@ -24,7 +24,8 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   migrate:
-    image: flyway/flyway:12.0
+    build: ./migrate
+    container_name: app-MIGRATE
     secrets:
       - db_password      
       - db_name
