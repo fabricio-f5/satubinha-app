@@ -24,5 +24,3 @@ docs/
 .idea/
 *.DS_Store
 
-!secrets/
-*.txt
