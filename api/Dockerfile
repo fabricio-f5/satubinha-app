@@ -3,10 +3,11 @@ ENV NODE_ENV=production
 
 WORKDIR /app
 
-COPY --chown=node:node ["package.json", "server.js", "./"]
+COPY --chown=node:node ["package.json", "./"]
+COPY --chown=node:node src/ ./src/
 
 RUN npm install --omit-dev
 
 USER node
 
-CMD [ "server.js" ]
+CMD [ "src/index.js" ]
