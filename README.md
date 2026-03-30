@@ -10,7 +10,7 @@ Aplicação full stack voltada para estudos e evolução contínua na área de D
 * API e Frontend com imagens Chainguard
 * Migrations com Flyway
 * Orquestração com dependências condicionais
-
+* Testes automatizados com Jest + Supertest
 
 A aplicação é composta por:
 
@@ -38,9 +38,32 @@ Esse fluxo garante ordem correta de inicialização, padrão importante em ambie
 * PostgreSQL (Chainguard image)
 * Flyway 12
 * Node.js
+* Jest + Supertest
 * Bridge Network
 * Docker Secrets
 * Healthchecks
+
+## Estrutura da API
+
+A API foi refatorada para suportar injeção de dependências — separando a lógica dos endpoints da configuração de infraestrutura. Isso permite que os testes corram sem depender de Docker Secrets ou de um banco de dados real.
+
+```
+api/
+├── src/
+│   ├── server.js     # lógica pura — cria a app Express e os endpoints
+│   └── index.js      # ponto de entrada em produção — lê secrets, cria pool, arranca servidor
+├── tests/
+│   ├── health.test.js
+│   └── db.test.js
+├── package.json
+└── Dockerfile
+```
+
+### Por que dois ficheiros separados?
+
+O `server.js` recebe o pool do banco como parâmetro — não sabe nada de secrets ou de ligações reais. O `index.js` é o único ficheiro que lê os Docker Secrets e cria o pool real. Nos testes, passa-se um pool falso (mock) ao `server.js` — sem precisar do banco a correr.
+
+Este padrão chama-se **injeção de dependências** e é um dos mais usados em programação para tornar código testável.
 
 ## Segurança
 
@@ -55,41 +78,79 @@ Esse fluxo garante ordem correta de inicialização, padrão importante em ambie
 
 Secret utilizado:
 
+```
 ./secrets/db_password.txt
-
+```
 
 ## Healthchecks Implementados
 
 ### Banco de Dados
 
+```
 pg_isready -U postgres -d satubinha
+```
 
 ### API
 
 Validação do endpoint:
 
+```
 GET http://localhost:4000/health
+```
 
 Se retornar status 200, o container é considerado saudável.
 
+## Testes
+
+**Framework:** Jest + Supertest
+
+**Cobertura:** 92% de linhas em `src/server.js` (mínimo exigido: 80%)
+
+| Ficheiro          | O que testa                                      |
+| ----------------- | ------------------------------------------------ |
+| health.test.js    | GET /health → status 200 e body `{ status: ok }` |
+| db.test.js        | GET /nomes, POST /nome, DELETE /nome/:id com mock DB |
+
+Os testes usam um mock do pool do PostgreSQL — não precisam do banco a correr para executar.
+
+### Como correr os testes
+
+Os testes correm dentro do container para garantir o mesmo ambiente do CI:
+
+```bash
+docker compose run --rm api npm test
+```
+
+Para ver o relatório de cobertura:
+
+```bash
+docker compose run --rm api npm test -- --coverage
+```
+
 ## Como Executar
 
-### 1. Criar o secret
+### 1. Criar os secrets
 
+```bash
 mkdir -p .secrets
 echo "seudbname" > .secrets/db_name.txt
 echo "suasenha123" > .secrets/db_password.txt
 echo "seuuser" > .secrets/db_user.txt
+```
 
 ### 2. Subir a aplicação
 
+```bash
 docker compose up --build
+```
 
 ### 3. Acessar a aplicação
 
 Frontend disponível em:
 
+```
 http://localhost:8081
+```
 
 ## Conceitos DevOps Aplicados
 
@@ -100,17 +161,22 @@ http://localhost:8081
 * Automação de migrations
 * Observabilidade básica com healthchecks
 * Uso de imagens minimalistas e seguras (Chainguard)
+* Testes automatizados com mock de dependências
+* Injeção de dependências para testabilidade
 
-## Roadmap (Próximas Evoluções)
+## Roadmap
 
-* Implementar CI/CD (GitHub Actions)
-* Criar pipeline de build multi-stage
-* Adicionar reverse proxy (Nginx)
-* Implementar monitoramento (Prometheus + Grafana)
-* Deploy em Kubernetes
-* Implementar testes automatizados
-* Implementar scan de vulnerabilidades (Trivy)
-* Adicionar logs estruturados e tracing
+* [x] Containers isolados com Docker Compose
+* [x] Docker Secrets para credenciais do banco
+* [x] Imagens Chainguard (PostgreSQL, API, Frontend)
+* [x] Migrations com Flyway
+* [x] Healthchecks na API e no banco
+* [x] Refatoração da API para injeção de dependências
+* [x] Testes automatizados com Jest + Supertest
+* [ ] CI/CD com GitHub Actions
+* [ ] Scan de vulnerabilidades (Trivy)
+* [ ] Análise de qualidade (SonarCloud)
+* [ ] Deploy em Kubernetes (ver satubinha-k8s)
 
 ## Objetivo do Projeto
 
@@ -120,7 +186,18 @@ O satubinha-app é um laboratório prático para evolução profissional em:
 * Containers
 * Segurança
 * Automação
+* Testes
 * Arquitetura moderna
 
 O objetivo é evoluir gradualmente a aplicação até um cenário próximo ao de produção, incorporando práticas reais de mercado.
 
+---
+
+## Série hands-on-satubinha
+
+| Projecto | Descrição | Relação | Estado |
+|---|---|---|---|
+| **satubinha-app** | App fullstack com Docker Compose, Chainguard, Flyway, testes | — | ✅ |
+| [satubinha-iac-terragrunt](https://github.com/fabricio-f5/hands-on-satubinha-iac-terragrunt) | Infra AWS multi-ambiente com Terraform + Terragrunt | infra repo | ✅ |
+| [satubinha-jenkins](https://github.com/fabricio-f5/hands-on-satubinha-jenkins) | Plataforma de execução de infra self-hosted | pipeline repo | ✅ |
+| [satubinha-k8s](https://github.com/fabricio-f5/hands-on-satubinha-k8s) | EKS + GitHub Actions + deploy contínuo | fecha o ciclo | 🔲 em curso |
