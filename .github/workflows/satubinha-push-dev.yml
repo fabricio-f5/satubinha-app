@@ -1,0 +1,101 @@
+name: "Satubinha — Push Dev"
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: "Satubinha — Push Dev"
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: dev-satubinha  
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: 'npm'}
+
+      - run: npm ci
+      
+      - name: Run tests with coverage
+        run: npm run jest -- --coverage --coverageReporters=lcov --ci
+        env:
+          NODE_ENV: test
+
+      - uses: SonarSource/sonarcloud-github-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Trivy — filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          severity: 'HIGH,CRITICAL' 
+          exit-code: '1'
+          scan-ref: '.'
+
+      - name: Set image tag
+        id: vars
+        run: echo "tag=${GITHUB_SHA::7}-stable" >> $GITHUB_OUTPUT
+
+      - id: check-ecr
+        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
+        with:
+          repository-name: 'satubinha-app-dev'
+          image-tag: '${{ steps.vars.outputs.tag }}'
+          region: 'us-east-1'
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Instalar Cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Rodar apenas se a imagem não existir
+        if: steps.check-ecr.outputs.image-exists == '0'
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          ECR_REPOSITORY: 'satubinha-app-dev'
+          IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
+        run: |
+          echo "A imagem não existe."
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          IMAGE_DIGEST=$(aws ecr batch-get-image \
+          --repository-name $ECR_REPOSITORY \
+          --image-ids imageTag=$IMAGE_TAG \
+          --query 'images[0].imageId.imageDigest' \
+          --output text)
+          cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
+
+      - name: Rodar apenas se a imagem existir
+        if: steps.check-ecr.outputs.image-exists == '1'
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+          ECR_REPOSITORY: 'satubinha-app-dev'
+          IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
+        run: |
+          echo "A imagem existe."
+          IMAGE_DIGEST=$(aws ecr batch-get-image \
+          --repository-name $ECR_REPOSITORY \
+          --image-ids imageTag=$IMAGE_TAG \
+          --query 'images[0].imageId.imageDigest' \
+          --output text)
+          cosign verify --certificate-identity-regexp https://github.com/fabricio-f5/satubinha-app/.* \
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+          $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
