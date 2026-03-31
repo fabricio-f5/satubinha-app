@@ -26,6 +26,7 @@ jobs:
         working-directory: api
       
       - name: Run tests with coverage
+        working-directory: api
         run: npm run jest -- --coverage --coverageReporters=lcov --ci
         env:
           NODE_ENV: test
