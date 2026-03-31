@@ -23,6 +23,7 @@ jobs:
         with: {node-version: '20'}
 
       - run: npm install
+        working-directory: api
       
       - name: Run tests with coverage
         run: npm run jest -- --coverage --coverageReporters=lcov --ci
