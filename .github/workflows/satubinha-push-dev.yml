@@ -80,7 +80,7 @@ jobs:
         run: |
           echo "A imagem não existe."
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./api/Dockerfile
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f ./api/Dockerfile ./api
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
           IMAGE_DIGEST=$(aws ecr batch-get-image \
