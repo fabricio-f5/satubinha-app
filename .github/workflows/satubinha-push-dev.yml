@@ -57,7 +57,7 @@ jobs:
       - id: check-ecr
         uses: mnmandahalf/check-ecr-image-exists@v0.1.5
         with:
-          repository-name: 'satubinha-app-dev'
+          repository-name: 'satubinha-app-img-stables'
           image-tag: '${{ steps.vars.outputs.tag }}'
           region: 'us-east-1'
 
@@ -75,7 +75,7 @@ jobs:
         if: steps.check-ecr.outputs.image-exists == '0'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: 'satubinha-app-dev'
+          ECR_REPOSITORY: 'satubinha-app-img-stables'
           IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
         run: |
           echo "A imagem não existe."
