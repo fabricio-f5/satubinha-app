@@ -54,19 +54,19 @@ jobs:
         id: vars
         run: echo "tag=${GITHUB_SHA::7}-stable" >> $GITHUB_OUTPUT
 
-      - id: check-ecr
-        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
-        with:
-          repository-name: 'satubinha-app-img-stables'
-          image-tag: '${{ steps.vars.outputs.tag }}'
-          region: 'us-east-1'
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
           role-session-name: GitHubActions-${{ github.run_id }}
+
+      - id: check-ecr
+        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
+        with:
+          repository-name: 'satubinha-app-img-stables'
+          image-tag: '${{ steps.vars.outputs.tag }}'
+          region: 'us-east-1'
 
       - name: Instalar Cosign
         uses: sigstore/cosign-installer@v3.8.1
