@@ -110,30 +110,12 @@ jobs:
             --output text)
           cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
 
-      - name: Verificar assinatura Cosign
+      - name: Imagem já existe
         if: steps.check-ecr.outputs.image-exists == '1'
-        env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: 'satubinha-app-img-stables'
-          IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
         run: |
-          echo "A imagem existe — verificando assinatura."
-          IMAGE_DIGEST=$(aws ecr batch-get-image \
-            --repository-name $ECR_REPOSITORY \
-            --image-ids imageTag=$IMAGE_TAG \
-            --query 'images[0].imageId.imageDigest' \
-            --output text)
-          
-          if ! cosign verify \
-            --certificate-identity-regexp https://github.com/fabricio-f5/satubinha-app/.* \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST; then
-            echo "❌ A imagem $IMAGE_TAG existe mas a assinatura Cosign é inválida."
-            echo "Possível adulteração da imagem — investiga antes de continuar."
+            echo "❌ A imagem $IMAGE_TAG já existe no ECR."
+            echo "Actualiza o ficheiro VERSION antes de fazer push."
             exit 1
-          fi
-
-          echo "❌ A imagem $IMAGE_TAG já existe e está assinada."
-          echo "Actualiza o ficheiro VERSION antes de fazer push."
-          exit 1
+        env:
+            IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
           
