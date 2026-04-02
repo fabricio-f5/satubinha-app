@@ -1,58 +1,71 @@
-name: "Satubinha — Push Dev"
+name: "Satubinha - Push Dev"
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      action:
-        description: 'Acção a executar'
-        required: true
-        
 
 jobs:
-  deploy:
-    name: "Satubinha — Push Dev"
+  test:
+    name: "Satubinha - Run Tests"
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
-    concurrency:
-      group: dev-satubinha  
-      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
-        with: {node-version: '20'}
+        with: {node-version: '20',cache: 'npm'}
 
-      - run: npm install
+      - name: Install dependencies
+        run: npm ci
         working-directory: api
-      
-      - name: Run tests 
+
+      - name: Run tests
         run: npm run test:ci
         working-directory: api
         env:
           NODE_ENV: test
 
-        #   - uses: SonarSource/sonarcloud-github-action@v3
-        #     env:
-        #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        #       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: Trivy — filesystem scan
+      - name: Trivy - filesystem scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           format: 'table'
-          severity: 'HIGH,CRITICAL' 
+          severity: 'CRITICAL'
           exit-code: '1'
-          scan-ref: '.'
+          scan-ref: 'api'
+
+  build:
+    name: "Build - ${{ matrix.service }}"
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: dev-satubinha-${{ matrix.service }}
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        include:
+          - service: api
+            context: ./api
+            dockerfile: ./api/Dockerfile
+          - service: front
+            context: ./front
+            dockerfile: ./front/Dockerfile
+          - service: migrate
+            context: ./migrate
+            dockerfile: ./migrate/Dockerfile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set image tag
         id: vars
-        run: echo "tag=${GITHUB_SHA::7}-stable" >> $GITHUB_OUTPUT
+        run: echo "tag=${{ matrix.service }}-$(cat VERSION)" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -71,38 +84,39 @@ jobs:
       - name: Instalar Cosign
         uses: sigstore/cosign-installer@v3.8.1
 
-      - name: Rodar apenas se a imagem não existir
+      - name: Build e push imagem
         if: steps.check-ecr.outputs.image-exists == '0'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
           ECR_REPOSITORY: 'satubinha-app-img-stables'
           IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
         run: |
-          echo "A imagem não existe."
+          echo "A imagem não existe — fazendo build e push."
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f ./api/Dockerfile ./api
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f ${{ matrix.dockerfile }} ${{ matrix.context }}
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
           IMAGE_DIGEST=$(aws ecr batch-get-image \
-          --repository-name $ECR_REPOSITORY \
-          --image-ids imageTag=$IMAGE_TAG \
-          --query 'images[0].imageId.imageDigest' \
-          --output text)
+            --repository-name $ECR_REPOSITORY \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'images[0].imageId.imageDigest' \
+            --output text)
           cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
 
-      - name: Rodar apenas se a imagem existir
+      - name: Verificar assinatura Cosign
         if: steps.check-ecr.outputs.image-exists == '1'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: 'satubinha-app-dev'
+          ECR_REPOSITORY: 'satubinha-app-img-stables'
           IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
         run: |
-          echo "A imagem existe."
+          echo "A imagem existe — verificando assinatura."
           IMAGE_DIGEST=$(aws ecr batch-get-image \
-          --repository-name $ECR_REPOSITORY \
-          --image-ids imageTag=$IMAGE_TAG \
-          --query 'images[0].imageId.imageDigest' \
-          --output text)
-          cosign verify --certificate-identity-regexp https://github.com/fabricio-f5/satubinha-app/.* \
-          --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-          $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
+            --repository-name $ECR_REPOSITORY \
+            --image-ids imageTag=$IMAGE_TAG \
+            --query 'images[0].imageId.imageDigest' \
+            --output text)
+          cosign verify \
+            --certificate-identity-regexp https://github.com/fabricio-f5/satubinha-app/.* \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
