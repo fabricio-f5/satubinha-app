@@ -123,7 +123,17 @@ jobs:
             --image-ids imageTag=$IMAGE_TAG \
             --query 'images[0].imageId.imageDigest' \
             --output text)
-          cosign verify \
+          
+          if ! cosign verify \
             --certificate-identity-regexp https://github.com/fabricio-f5/satubinha-app/.* \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
+            $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST; then
+            echo "❌ A imagem $IMAGE_TAG existe mas a assinatura Cosign é inválida."
+            echo "Possível adulteração da imagem — investiga antes de continuar."
+            exit 1
+          fi
+
+          echo "❌ A imagem $IMAGE_TAG já existe e está assinada."
+          echo "Actualiza o ficheiro VERSION antes de fazer push."
+          exit 1
+          
