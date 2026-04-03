@@ -72,7 +72,10 @@ jobs:
 
       - name: Set image tag
         id: vars
-        run: echo "tag=${{ matrix.service }}-$(cat VERSION)" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(cat VERSION)
+          echo "tag=${{ matrix.service }}-$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,6 +112,13 @@ jobs:
             --query 'images[0].imageId.imageDigest' \
             --output text)
           cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
+
+          aws ssm put-parameter \
+            --name "/satubinha/images/${{ matrix.service }}" \
+            --value "${{ steps.vars.outputs.version }}" \
+            --type "String" \
+            --overwrite \
+            --region us-east-1
 
       - name: Imagem já existe
         if: steps.check-ecr.outputs.image-exists == '1'
