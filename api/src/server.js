@@ -7,7 +7,7 @@ function createApp(pool) {
   app.use(express.json());
 
   // salvar nome
-  app.post("/nome", async (req, res) => {
+  app.post("/api/nome", async (req, res) => {
     try {
       const { nome } = req.body;
       await pool.query("INSERT INTO pessoas(nome) VALUES($1)", [nome]);
@@ -18,7 +18,7 @@ function createApp(pool) {
   });
 
   // listar nomes
-  app.get("/nomes", async (req, res) => {
+  app.get("/api/nomes", async (req, res) => {
     try {
       const result = await pool.query("SELECT * FROM pessoas");
       res.json(result.rows);
@@ -28,7 +28,7 @@ function createApp(pool) {
   });
 
   // deletar registro
-  app.delete("/nome/:id", async (req, res) => {
+  app.delete("/api/nome/:id", async (req, res) => {
     try {
       const { id } = req.params;
       await pool.query("DELETE FROM pessoas WHERE id=$1", [id]);
