@@ -303,4 +303,4 @@ http://localhost:8081
 | **satubinha-app** | App fullstack com Docker Compose, Chainguard, Flyway, testes, CI/CD | — | ✅ |
 | [satubinha-iac-terragrunt](https://github.com/fabricio-f5/hands-on-satubinha-iac-terragrunt) | Infra AWS multi-ambiente com Terraform + Terragrunt | infra repo | ✅ |
 | [satubinha-jenkins](https://github.com/fabricio-f5/hands-on-satubinha-jenkins) | Plataforma de execução de infra self-hosted | pipeline repo | ✅ |
-| [satubinha-k8s](https://github.com/fabricio-f5/hands-on-satubinha-k8s) | EKS + GitHub Actions + deploy contínuo | fecha o ciclo | 🔲 em curso |
+| [satubinha-k8s](https://github.com/fabricio-f5/hands-on-satubinha-k8s) | EKS + GitHub Actions + deploy contínuo | fecha o ciclo | 🔲 em curso |# satubinha-k8s
