@@ -1,4 +1,5 @@
 name: "Satubinha - Push Dev"
+
 on:
   push:
     branches:
@@ -6,17 +7,17 @@ on:
   workflow_dispatch:
 
 jobs:
+
   test:
-    name: "Satubinha - Run Tests"
+    name: "Run Tests"
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
-        with: 
+        with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: ./api/package-lock.json
@@ -40,15 +41,75 @@ jobs:
           exit-code: '1'
           scan-ref: 'api'
 
+  release:
+    name: "Release"
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/exec
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  changes:
+    name: "Detect Changes"
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      api:      ${{ steps.filter.outputs.api }}
+      front:    ${{ steps.filter.outputs.front }}
+      weather:  ${{ steps.filter.outputs.weather }}
+      database: ${{ steps.filter.outputs.database }}
+      migrate:  ${{ steps.filter.outputs.migrate }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            front:
+              - 'front/**'
+            weather:
+              - 'weather/**'
+            database:
+              - 'database/**'
+            migrate:
+              - 'migrate/**'
+
   build:
     name: "Build - ${{ matrix.service }}"
-    needs: test
+    needs: [release, changes]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     concurrency:
-      group: dev-satubinha-${{ matrix.service }}
+      group: build-satubinha-${{ matrix.service }}
       cancel-in-progress: false
     strategy:
       fail-fast: false
@@ -60,73 +121,77 @@ jobs:
           - service: front
             context: ./front
             dockerfile: ./front/Dockerfile
+          - service: weather
+            context: ./weather
+            dockerfile: ./weather/Dockerfile
           - service: database
             context: ./database
             dockerfile: ./database/Dockerfile
           - service: migrate
             context: ./migrate
             dockerfile: ./migrate/Dockerfile
-          - service: weather
-            context: ./weather
-            dockerfile: ./weather/Dockerfile
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set image tag
-        id: vars
+      - name: Verificar se servico foi alterado
+        id: changed
         run: |
-          VERSION=$(cat VERSION)
-          echo "tag=${{ matrix.service }}-$VERSION" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          declare -A map
+          map[api]="${{ needs.changes.outputs.api }}"
+          map[front]="${{ needs.changes.outputs.front }}"
+          map[weather]="${{ needs.changes.outputs.weather }}"
+          map[database]="${{ needs.changes.outputs.database }}"
+          map[migrate]="${{ needs.changes.outputs.migrate }}"
+          echo "value=${map[${{ matrix.service }}]}" >> $GITHUB_OUTPUT
+
+      - name: Servico sem alteracoes — ignorando
+        if: steps.changed.outputs.value != 'true'
+        run: echo "Servico ${{ matrix.service }} nao alterado, pulando build."
 
       - name: Configure AWS credentials via OIDC
+        if: steps.changed.outputs.value == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
           role-session-name: GitHubActions-${{ github.run_id }}
 
-      - id: check-ecr
-        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
-        with:
-          repository-name: 'satubinha-app-img-stables'
-          image-tag: '${{ steps.vars.outputs.tag }}'
-          region: 'us-east-1'
-
       - name: Instalar Cosign
+        if: steps.changed.outputs.value == 'true'
         uses: sigstore/cosign-installer@v3.8.1
 
       - name: Build e push imagem
-        if: steps.check-ecr.outputs.image-exists == '0'
+        if: steps.changed.outputs.value == 'true'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: 'satubinha-app-img-stables'
-          IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
+          ECR_REPOSITORY: satubinha-app-img-stables
+          SERVICE: ${{ matrix.service }}
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
-          echo "A imagem não existe — fazendo build e push."
-          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_REGISTRY
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f ${{ matrix.dockerfile }} ${{ matrix.context }}
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          VERSION_TAG="$SERVICE-v$VERSION"
+          LATEST_TAG="$SERVICE-latest"
+
+          aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin $ECR_REGISTRY
+
+          docker build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG \
+            -f ${{ matrix.dockerfile }} ${{ matrix.context }}
+
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
 
           IMAGE_DIGEST=$(aws ecr batch-get-image \
             --repository-name $ECR_REPOSITORY \
-            --image-ids imageTag=$IMAGE_TAG \
+            --image-ids imageTag=$VERSION_TAG \
             --query 'images[0].imageId.imageDigest' \
             --output text)
           cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
 
           aws ssm put-parameter \
-            --name "/satubinha/images/${{ matrix.service }}" \
-            --value "${{ steps.vars.outputs.version }}" \
+            --name "/satubinha/images/$SERVICE" \
+            --value "v$VERSION" \
             --type "String" \
             --overwrite \
             --region us-east-1
-
-      - name: Imagem já existe
-        if: steps.check-ecr.outputs.image-exists == '1'
-        run: |
-            echo "Imagem $IMAGE_TAG ja existe no ECR — ignorando."
-        env:
-            IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
-          
