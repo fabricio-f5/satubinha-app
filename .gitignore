@@ -3,4 +3,6 @@
 .env.*
 *.key
 *.pub
+secrets/
+.DS_Store
 

@@ -1,0 +1,51 @@
+/* Reset básico */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(to bottom, #003366, #228B22);
+  color: #FFD700;
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+  transition: 0.3s;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1em;
+  padding: 12px 20px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+input {
+  padding: 12px 15px;
+  border-radius: 8px;
+  border: none;
+  font-size: 1em;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+h1 {
+  font-size: 3em;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px #003366;
+}
+
+h2 {
+  font-size: 1.5em;
+  margin-bottom: 20px;
+}
