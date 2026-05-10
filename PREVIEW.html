@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Satubinha Lab</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-2: #1c2129;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --accent: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-yellow: #d29922;
+      --accent-red: #f85149;
+      --accent-purple: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ---- HERO ---- */
+    .hero {
+      border-bottom: 1px solid var(--border);
+      padding: 64px 24px 48px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      color: var(--accent);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--text) 40%, var(--text-muted));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 540px;
+      margin: 0 auto 32px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      border: none;
+    }
+
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0d1117;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ---- LAYOUT ---- */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .section {
+      padding: 56px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      max-width: 560px;
+    }
+
+    /* ---- SERVICES ---- */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .service-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .service-card:hover { border-color: var(--accent); }
+
+    .service-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .service-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    .service-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .service-tech {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .service-port {
+      display: inline-block;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      color: var(--accent-green);
+    }
+
+    /* ---- ARCH DIAGRAM ---- */
+    .arch {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+    }
+
+    .arch .node { color: var(--accent); font-weight: bold; }
+    .arch .arrow { color: var(--text-muted); }
+    .arch .label { color: var(--accent-green); }
+
+    /* ---- DEMO ---- */
+    .demo-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 680px) {
+      .demo-layout { grid-template-columns: 1fr; }
+    }
+
+    .demo-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .demo-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    .demo-panel-body { padding: 16px; }
+
+    /* Weather */
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .weather-day {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+
+    .weather-day .day-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .weather-day .day-icon { font-size: 1.4rem; margin: 6px 0; }
+
+    .weather-day .day-temp {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Names list */
+    .name-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .name-input-row input {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .name-input-row input:focus { border-color: var(--accent); }
+
+    .name-input-row button {
+      background: var(--accent);
+      color: #0d1117;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .names-list { list-style: none; }
+
+    .name-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      background: var(--surface-2);
+      font-size: 0.88rem;
+    }
+
+    .name-item .name-text { color: var(--text); }
+
+    .name-item button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .name-item button:hover { color: var(--accent-red); border-color: var(--accent-red); }
+
+    /* ---- STACK PILLS ---- */
+    .stack-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stack-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      transition: border-color 0.2s;
+    }
+
+    .stack-pill:hover { border-color: var(--accent); }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .pill-name { font-weight: 600; }
+    .pill-sub { color: var(--text-muted); font-size: 0.78rem; }
+
+    /* ---- FOOTER ---- */
+    footer {
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    footer strong { color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">Em execução</div>
+    <h1>Satubinha Lab</h1>
+    <p>Laboratório de DevOps & Cloud Native — microsserviços containerizados com Docker Compose, CI/CD e boas práticas de segurança.</p>
+    <div class="hero-actions">
+      <a href="http://localhost:8080" class="btn btn-primary">Abrir aplicação</a>
+      <a href="https://github.com/fabricio-f5/satubinha-app" class="btn btn-secondary">Ver repositório</a>
+    </div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="section">
+    <div class="container">
+      <div class="section-label">Infraestrutura</div>
+      <div class="section-title">Serviços</div>
+      <div class="section-desc">Quatro containers independentes orquestrados com Docker Compose, cada um com health check configurado.</div>
+
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-header">
+            <div class="service-icon" style="background: rgba(88,166,255,0.1); color: var(--accent);">⚛</div>
+            <div class="status-dot"></div>
+          </div>
+          <div class="service-name">Frontend</div>
+          <div class="service-tech">Next.js · React · CSS Modules</div>
+          <span class="service-port">:8080</span>
+        </div>
+
+        <div class="service-card">
+          <div class="service-header">
+            <div class="service-icon" style="background: rgba(63,185,80,0.1); color: var(--accent-green);">⬡</div>
+            <div class="status-dot"></div>
+          </div>
+          <div class="service-name">API</div>
+          <div class="service-tech">Node.js · Express · PostgreSQL</div>
+          <span class="service-port">:4000</span>
+        </div>
+
+        <div class="service-card">
+          <div class="service-header">
+            <div class="service-icon" style="background: rgba(188,140,255,0.1); color: var(--accent-purple);">☁</div>
+            <div class="status-dot"></div>
+          </div>
+          <div class="service-name">Weather</div>
+          <div class="service-tech">Python · Flask · OpenWeatherMap</div>
+          <span class="service-port">:5000</span>
+        </div>
+
+        <div class="service-card">
+          <div class="service-header">
+            <div class="service-icon" style="background: rgba(210,153,34,0.1); color: var(--accent-yellow);">▪</div>
+            <div class="status-dot"></div>
+          </div>
+          <div class="service-name">Database</div>
+          <div class="service-tech">PostgreSQL · Flyway Migrations</div>
+          <span class="service-port">:5432</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO -->
+  <div class="section">
+    <div class="container">
+      <div class="section-label">Interface</div>
+      <div class="section-title">Preview da aplicação</div>
+      <div class="section-desc">Demonstração estática das duas funcionalidades principais.</div>
+
+      <div class="demo-layout">
+        <!-- Weather -->
+        <div class="demo-panel">
+          <div class="demo-panel-header">
+            <div class="dot" style="background:#f85149"></div>
+            <div class="dot" style="background:#d29922"></div>
+            <div class="dot" style="background:#3fb950"></div>
+            &nbsp; Previsão do Tempo — Satubinha
+          </div>
+          <div class="demo-panel-body">
+            <div class="weather-grid">
+              <div class="weather-day">
+                <div class="day-label">Sáb</div>
+                <div class="day-icon">☀️</div>
+                <div class="day-temp">28°</div>
+              </div>
+              <div class="weather-day">
+                <div class="day-label">Dom</div>
+                <div class="day-icon">⛅</div>
+                <div class="day-temp">27°</div>
+              </div>
+              <div class="weather-day">
+                <div class="day-label">Seg</div>
+                <div class="day-icon">🌧️</div>
+                <div class="day-temp">26°</div>
+              </div>
+              <div class="weather-day">
+                <div class="day-label">Ter</div>
+                <div class="day-icon">☁️</div>
+                <div class="day-temp">25°</div>
+              </div>
+              <div class="weather-day">
+                <div class="day-label">Qua</div>
+                <div class="day-icon">☀️</div>
+                <div class="day-temp">29°</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Names -->
+        <div class="demo-panel">
+          <div class="demo-panel-header">
+            <div class="dot" style="background:#f85149"></div>
+            <div class="dot" style="background:#d29922"></div>
+            <div class="dot" style="background:#3fb950"></div>
+            &nbsp; Quem ama Satubinha?
+          </div>
+          <div class="demo-panel-body">
+            <div class="name-input-row">
+              <input type="text" placeholder="Digite um nome...">
+              <button>Adicionar</button>
+            </div>
+            <ul class="names-list">
+              <li class="name-item">
+                <span class="name-text">Fulano ama Satubinha</span>
+                <button>remover</button>
+              </li>
+              <li class="name-item">
+                <span class="name-text">Ciclano ama Satubinha</span>
+                <button>remover</button>
+              </li>
+              <li class="name-item">
+                <span class="name-text">Beltrano ama Satubinha</span>
+                <button>remover</button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section">
+    <div class="container">
+      <div class="section-label">Diagrama</div>
+      <div class="section-title">Arquitetura</div>
+      <div class="section-desc">Fluxo de dados entre os serviços na rede interna Docker.</div>
+
+      <div class="arch">
+<pre>
+  Browser
+    │
+    ▼
+ <span class="node">[ front :8080 ]</span>  (Next.js)
+    │                 │
+    │  /api/*         │  /weather/*
+    ▼                 ▼
+ <span class="node">[ api :4000 ]</span>    <span class="node">[ weather :5000 ]</span>  (Python/Flask)
+    │                         │
+    ▼                         ▼
+ <span class="node">[ db :5432 ]</span>         <span class="label">OpenWeatherMap API</span>
+  PostgreSQL
+    ▲
+    │  migrations
+ <span class="node">[ migrate ]</span>  (Flyway)
+
+  <span class="label">rede: app-network (bridge)</span>
+  <span class="label">volume: pgdata (persistência)</span>
+  <span class="label">secrets: /run/secrets/* (Docker Secrets)</span>
+</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- STACK -->
+  <div class="section">
+    <div class="container">
+      <div class="section-label">Tecnologias</div>
+      <div class="section-title">Stack completo</div>
+      <div class="section-desc" style="margin-bottom: 24px;"></div>
+
+      <div class="stack-row">
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #58a6ff;"></div>
+          <div><div class="pill-name">Next.js</div><div class="pill-sub">React · SSR</div></div>
+        </div>
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #3fb950;"></div>
+          <div><div class="pill-name">Node.js</div><div class="pill-sub">Express · REST API</div></div>
+        </div>
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #bc8cff;"></div>
+          <div><div class="pill-name">Python</div><div class="pill-sub">Flask · Gunicorn</div></div>
+        </div>
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #d29922;"></div>
+          <div><div class="pill-name">PostgreSQL</div><div class="pill-sub">Flyway migrations</div></div>
+        </div>
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #58a6ff;"></div>
+          <div><div class="pill-name">Docker</div><div class="pill-sub">Compose · Secrets</div></div>
+        </div>
+        <div class="stack-pill">
+          <div class="pill-dot" style="background: #3fb950;"></div>
+          <div><div class="pill-name">GitHub Actions</div><div class="pill-sub">CI/CD pipeline</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <strong>Fabricio Peloso</strong> &mdash; DevOps Engineer &nbsp;·&nbsp; Satubinha Lab 2026
+  </footer>
+
+</body>
+</html>
