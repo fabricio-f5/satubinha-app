@@ -39,7 +39,7 @@ OPENWEATHER_API_KEY=sua_chave_aqui
 ### 3. Iniciar com Docker Compose
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 Acesse:
@@ -58,7 +58,7 @@ Acesse:
 - 🌤️ Previsão para 5 dias em Satubinha
 - 📊 Temperatura mín/máx, umidade, velocidade do vento
 - 🔄 Atualização automática a cada 30 minutos
-- 🎨 Design responsivo com tema Brasil
+- 🎨 Design responsivo com dark theme
 
 ## 🔧 Variáveis de Ambiente
 
@@ -151,8 +151,8 @@ touch migrate/migrations/V2__Nova_migration.sql
 Para fazer build:
 
 ```bash
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
 ```
 
 ## 🐛 Troubleshooting
@@ -172,4 +172,3 @@ Verifique `/secrets/` - deve conter `db_user.txt`, `db_password.txt`, `db_name.t
 - [ ] Validação de entrada mais robusta
 - [ ] Cache de previsão do tempo
 - [ ] Filtro de nomes por favoritos
-- [ ] Dark mode
