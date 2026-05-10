@@ -51,6 +51,7 @@ jobs:
       group: dev-satubinha-${{ matrix.service }}
       cancel-in-progress: false
     strategy:
+      fail-fast: false
       matrix:
         include:
           - service: api
@@ -122,9 +123,7 @@ jobs:
       - name: Imagem já existe
         if: steps.check-ecr.outputs.image-exists == '1'
         run: |
-            echo "❌ A imagem $IMAGE_TAG já existe no ECR."
-            echo "Actualiza o ficheiro VERSION antes de fazer push."
-            exit 1
+            echo "Imagem $IMAGE_TAG ja existe no ECR — ignorando."
         env:
             IMAGE_TAG: '${{ steps.vars.outputs.tag }}'
           
