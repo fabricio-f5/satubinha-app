@@ -85,7 +85,7 @@ services:
     build: ./front
     container_name: app-FRONT
     ports:
-      - "8081:3000"
+      - "8080:3000"
     environment:
       NEXT_PUBLIC_API_URL: "http://localhost:4000"
     depends_on:

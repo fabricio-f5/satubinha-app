@@ -23,9 +23,8 @@ export default function NomesList() {
 
   const enviar = async (e) => {
     e.preventDefault();
-    
     if (!novoNome.trim()) {
-      setMensagem('Por favor, digite um nome');
+      setMensagem('Digite um nome primeiro');
       return;
     }
 
@@ -34,15 +33,12 @@ export default function NomesList() {
       const response = await fetch('/api/nome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome: novoNome })
+        body: JSON.stringify({ nome: novoNome }),
       });
-      
       const data = await response.json();
-      setMensagem(data.mensagem || 'Adicionado com sucesso!');
+      setMensagem(data.mensagem || 'Adicionado!');
       setNovoNome('');
-      
       setTimeout(() => setMensagem(''), 3000);
-      
       carregarLista();
     } catch (error) {
       console.error('Erro ao enviar:', error);
@@ -62,42 +58,49 @@ export default function NomesList() {
   };
 
   return (
-    <div className={styles.section}>
-      <h2>Quem ama Satubinha?</h2>
-      
-      <form onSubmit={enviar} className={styles.inputGroup}>
-        <input
-          type="text"
-          placeholder="Seu nome"
-          value={novoNome}
-          onChange={(e) => setNovoNome(e.target.value)}
-          disabled={carregando}
-        />
-        <button type="submit" disabled={carregando}>
-          {carregando ? 'Adicionando...' : 'Adicionar'}
-        </button>
-      </form>
+    <div className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <span className={styles.dot} style={{ background: '#f85149' }} />
+        <span className={styles.dot} style={{ background: '#d29922' }} />
+        <span className={styles.dot} style={{ background: '#3fb950' }} />
+        <span className={styles.panelTitle}>Quem ama Satubinha?</span>
+      </div>
+      <div className={styles.panelBody}>
+        <form onSubmit={enviar} className={styles.inputRow}>
+          <input
+            className={styles.nameInput}
+            type="text"
+            placeholder="Digite seu nome..."
+            value={novoNome}
+            onChange={(e) => setNovoNome(e.target.value)}
+            disabled={carregando}
+          />
+          <button className={styles.addBtn} type="submit" disabled={carregando}>
+            {carregando ? '...' : 'Adicionar'}
+          </button>
+        </form>
 
-      {mensagem && <div className={styles.resultado}>{mensagem}</div>}
+        {mensagem && <div className={styles.message}>{mensagem}</div>}
 
-      <ul className={styles.lista}>
-        {nomes.length === 0 ? (
-          <li className={styles.emptyList}>Nenhum nome adicionado ainda</li>
-        ) : (
-          nomes.map((item) => (
-            <li key={item.id} className={styles.listaItem}>
-              <span>{item.nome} ama Satubinha</span>
-              <button
-                className={styles.deleteBtn}
-                onClick={() => deletar(item.id)}
-                type="button"
-              >
-                Deletar
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
+        <ul className={styles.namesList}>
+          {nomes.length === 0 ? (
+            <li className={styles.emptyState}>Nenhum nome ainda — seja o primeiro!</li>
+          ) : (
+            nomes.map((item) => (
+              <li key={item.id} className={styles.nameItem}>
+                <span className={styles.nameText}>{item.nome} ama Satubinha</span>
+                <button
+                  className={styles.removeBtn}
+                  onClick={() => deletar(item.id)}
+                  type="button"
+                >
+                  remover
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      </div>
     </div>
   );
 }
