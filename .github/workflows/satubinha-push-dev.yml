@@ -60,6 +60,9 @@ jobs:
           - service: front
             context: ./front
             dockerfile: ./front/Dockerfile
+          - service: database
+            context: ./database
+            dockerfile: ./database/Dockerfile
           - service: migrate
             context: ./migrate
             dockerfile: ./migrate/Dockerfile
