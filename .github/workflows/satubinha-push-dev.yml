@@ -51,7 +51,7 @@ jobs:
       pull-requests: write
     outputs:
       published: ${{ steps.semantic.outputs.new_release_published }}
-      version: ${{ steps.semantic.outputs.new_release_version }}
+      version:   ${{ steps.version.outputs.value }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,6 +62,7 @@ jobs:
           node-version: '20'
 
       - name: Semantic Release
+        if: github.event_name != 'workflow_dispatch'
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
         with:
@@ -72,21 +73,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolver versao
+        id: version
+        run: |
+          if [[ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]]; then
+            echo "value=${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=$(cat VERSION)" >> $GITHUB_OUTPUT
+          fi
+
   changes:
     name: "Detect Changes"
     needs: release
-    if: needs.release.outputs.published == 'true'
+    if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
-      api:      ${{ steps.filter.outputs.api }}
-      front:    ${{ steps.filter.outputs.front }}
-      weather:  ${{ steps.filter.outputs.weather }}
-      database: ${{ steps.filter.outputs.database }}
-      migrate:  ${{ steps.filter.outputs.migrate }}
+      api:      ${{ steps.result.outputs.api }}
+      front:    ${{ steps.result.outputs.front }}
+      weather:  ${{ steps.result.outputs.weather }}
+      database: ${{ steps.result.outputs.database }}
+      migrate:  ${{ steps.result.outputs.migrate }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: dorny/paths-filter@v3
+        if: github.event_name != 'workflow_dispatch'
         id: filter
         with:
           filters: |
@@ -100,6 +111,23 @@ jobs:
               - 'database/**'
             migrate:
               - 'migrate/**'
+
+      - name: Consolidar outputs
+        id: result
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "api=false"      >> $GITHUB_OUTPUT
+            echo "front=false"    >> $GITHUB_OUTPUT
+            echo "weather=false"  >> $GITHUB_OUTPUT
+            echo "database=false" >> $GITHUB_OUTPUT
+            echo "migrate=false"  >> $GITHUB_OUTPUT
+          else
+            echo "api=${{ steps.filter.outputs.api }}"           >> $GITHUB_OUTPUT
+            echo "front=${{ steps.filter.outputs.front }}"       >> $GITHUB_OUTPUT
+            echo "weather=${{ steps.filter.outputs.weather }}"   >> $GITHUB_OUTPUT
+            echo "database=${{ steps.filter.outputs.database }}" >> $GITHUB_OUTPUT
+            echo "migrate=${{ steps.filter.outputs.migrate }}"   >> $GITHUB_OUTPUT
+          fi
 
   build:
     name: "Build - ${{ matrix.service }}"
@@ -133,7 +161,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verificar se servico foi alterado
+      - name: Verificar alteracoes no servico
         id: changed
         run: |
           declare -A map
@@ -144,24 +172,44 @@ jobs:
           map[migrate]="${{ needs.changes.outputs.migrate }}"
           echo "value=${map[${{ matrix.service }}]}" >> $GITHUB_OUTPUT
 
-      - name: Servico sem alteracoes — ignorando
-        if: steps.changed.outputs.value != 'true'
-        run: echo "Servico ${{ matrix.service }} nao alterado, pulando build."
-
       - name: Configure AWS credentials via OIDC
-        if: steps.changed.outputs.value == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
           role-session-name: GitHubActions-${{ github.run_id }}
 
+      - name: Verificar imagem no ECR
+        id: check-ecr
+        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
+        with:
+          repository-name: 'satubinha-app-img-stables'
+          image-tag: '${{ matrix.service }}-v${{ needs.release.outputs.version }}'
+          region: 'us-east-1'
+
+      - name: Determinar acao
+        id: action
+        run: |
+          IMAGE_EXISTS="${{ steps.check-ecr.outputs.image-exists }}"
+          CHANGED="${{ steps.changed.outputs.value }}"
+
+          if [[ "$IMAGE_EXISTS" == "1" && "$CHANGED" != "true" ]]; then
+            echo "Imagem ${{ matrix.service }}-v${{ needs.release.outputs.version }} ja existe e sem alteracoes — ignorando."
+            echo "build=false" >> $GITHUB_OUTPUT
+          elif [[ "$IMAGE_EXISTS" == "1" && "$CHANGED" == "true" ]]; then
+            echo "Imagem existe mas ha alteracoes — nova versao sera gerada pelo semantic-release no proximo ciclo."
+            echo "build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Imagem nao encontrada no ECR — iniciando build."
+            echo "build=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Instalar Cosign
-        if: steps.changed.outputs.value == 'true'
+        if: steps.action.outputs.build == 'true'
         uses: sigstore/cosign-installer@v3.8.1
 
       - name: Build e push imagem
-        if: steps.changed.outputs.value == 'true'
+        if: steps.action.outputs.build == 'true'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
           ECR_REPOSITORY: satubinha-app-img-stables
