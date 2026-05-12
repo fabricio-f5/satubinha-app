@@ -6,26 +6,17 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      force_api:
-        description: 'Forcar rebuild do servico api'
-        type: boolean
-        default: false
-      force_front:
-        description: 'Forcar rebuild do servico front'
-        type: boolean
-        default: false
-      force_weather:
-        description: 'Forcar rebuild do servico weather'
-        type: boolean
-        default: false
-      force_database:
-        description: 'Forcar rebuild do servico database'
-        type: boolean
-        default: false
-      force_migrate:
-        description: 'Forcar rebuild do servico migrate'
-        type: boolean
-        default: false
+      service:
+        description: 'Servico para build'
+        type: choice
+        default: all
+        options:
+          - all
+          - api
+          - front
+          - weather
+          - database
+          - migrate
 
 jobs:
 
@@ -95,11 +86,12 @@ jobs:
         id: result
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "api=${{ inputs.force_api }}"           >> $GITHUB_OUTPUT
-            echo "front=${{ inputs.force_front }}"       >> $GITHUB_OUTPUT
-            echo "weather=${{ inputs.force_weather }}"   >> $GITHUB_OUTPUT
-            echo "database=${{ inputs.force_database }}" >> $GITHUB_OUTPUT
-            echo "migrate=${{ inputs.force_migrate }}"   >> $GITHUB_OUTPUT
+            SERVICE="${{ inputs.service }}"
+            echo "api=$(    [[ "$SERVICE" == "all" || "$SERVICE" == "api"      ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "front=$(  [[ "$SERVICE" == "all" || "$SERVICE" == "front"    ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "weather=$([[ "$SERVICE" == "all" || "$SERVICE" == "weather"  ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "database=$([[ "$SERVICE" == "all" || "$SERVICE" == "database"]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            echo "migrate=$([[ "$SERVICE" == "all" || "$SERVICE" == "migrate"  ]] && echo true || echo false)" >> $GITHUB_OUTPUT
           else
             echo "api=${{ steps.filter.outputs.api }}"           >> $GITHUB_OUTPUT
             echo "front=${{ steps.filter.outputs.front }}"       >> $GITHUB_OUTPUT
