@@ -87,11 +87,13 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             SERVICE="${{ inputs.service }}"
-            echo "api=$(    [[ "$SERVICE" == "all" || "$SERVICE" == "api"      ]] && echo true || echo false)" >> $GITHUB_OUTPUT
-            echo "front=$(  [[ "$SERVICE" == "all" || "$SERVICE" == "front"    ]] && echo true || echo false)" >> $GITHUB_OUTPUT
-            echo "weather=$([[ "$SERVICE" == "all" || "$SERVICE" == "weather"  ]] && echo true || echo false)" >> $GITHUB_OUTPUT
-            echo "database=$([[ "$SERVICE" == "all" || "$SERVICE" == "database"]] && echo true || echo false)" >> $GITHUB_OUTPUT
-            echo "migrate=$([[ "$SERVICE" == "all" || "$SERVICE" == "migrate"  ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+            for svc in api front weather database migrate; do
+              if [[ "$SERVICE" == "all" || "$SERVICE" == "$svc" ]]; then
+                echo "$svc=true" >> $GITHUB_OUTPUT
+              else
+                echo "$svc=false" >> $GITHUB_OUTPUT
+              fi
+            done
           else
             echo "api=${{ steps.filter.outputs.api }}"           >> $GITHUB_OUTPUT
             echo "front=${{ steps.filter.outputs.front }}"       >> $GITHUB_OUTPUT
