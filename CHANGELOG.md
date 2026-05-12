@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/fabricio-f5/satubinha-app/compare/v1.0.0...v1.0.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* corrige fluxo de build com verificacao de imagem no ECR por servico ([9f179d0](https://github.com/fabricio-f5/satubinha-app/commit/9f179d0c35174da9c25cf8e2f56b099ddd7713da))
+
 # 1.0.0 (2026-05-10)
 
 
