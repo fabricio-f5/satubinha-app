@@ -5,6 +5,27 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      force_api:
+        description: 'Forcar rebuild do servico api'
+        type: boolean
+        default: false
+      force_front:
+        description: 'Forcar rebuild do servico front'
+        type: boolean
+        default: false
+      force_weather:
+        description: 'Forcar rebuild do servico weather'
+        type: boolean
+        default: false
+      force_database:
+        description: 'Forcar rebuild do servico database'
+        type: boolean
+        default: false
+      force_migrate:
+        description: 'Forcar rebuild do servico migrate'
+        type: boolean
+        default: false
 
 jobs:
 
@@ -33,59 +54,17 @@ jobs:
           NODE_ENV: test
 
       - name: Trivy - filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: 'fs'
           format: 'table'
-          severity: 'CRITICAL'
+          severity: 'HIGH,CRITICAL'
           exit-code: '1'
           scan-ref: 'api'
 
-  release:
-    name: "Release"
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    outputs:
-      published: ${{ steps.semantic.outputs.new_release_published }}
-      version:   ${{ steps.version.outputs.value }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Semantic Release
-        if: github.event_name != 'workflow_dispatch'
-        id: semantic
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/exec
-            @semantic-release/git
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Resolver versao
-        id: version
-        run: |
-          if [[ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]]; then
-            echo "value=${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_OUTPUT
-          else
-            echo "value=$(cat VERSION)" >> $GITHUB_OUTPUT
-          fi
-
   changes:
     name: "Detect Changes"
-    needs: release
-    if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       api:      ${{ steps.result.outputs.api }}
@@ -116,11 +95,11 @@ jobs:
         id: result
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "api=false"      >> $GITHUB_OUTPUT
-            echo "front=false"    >> $GITHUB_OUTPUT
-            echo "weather=false"  >> $GITHUB_OUTPUT
-            echo "database=false" >> $GITHUB_OUTPUT
-            echo "migrate=false"  >> $GITHUB_OUTPUT
+            echo "api=${{ inputs.force_api }}"           >> $GITHUB_OUTPUT
+            echo "front=${{ inputs.force_front }}"       >> $GITHUB_OUTPUT
+            echo "weather=${{ inputs.force_weather }}"   >> $GITHUB_OUTPUT
+            echo "database=${{ inputs.force_database }}" >> $GITHUB_OUTPUT
+            echo "migrate=${{ inputs.force_migrate }}"   >> $GITHUB_OUTPUT
           else
             echo "api=${{ steps.filter.outputs.api }}"           >> $GITHUB_OUTPUT
             echo "front=${{ steps.filter.outputs.front }}"       >> $GITHUB_OUTPUT
@@ -131,7 +110,7 @@ jobs:
 
   build:
     name: "Build - ${{ matrix.service }}"
-    needs: [release, changes]
+    needs: [changes]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -146,18 +125,23 @@ jobs:
           - service: api
             context: ./api
             dockerfile: ./api/Dockerfile
+            ecr_repo: satubinha-api
           - service: front
             context: ./front
             dockerfile: ./front/Dockerfile
+            ecr_repo: satubinha-front
           - service: weather
             context: ./weather
             dockerfile: ./weather/Dockerfile
+            ecr_repo: satubinha-weather
           - service: database
             context: ./database
             dockerfile: ./database/Dockerfile
+            ecr_repo: satubinha-database
           - service: migrate
             context: ./migrate
             dockerfile: ./migrate/Dockerfile
+            ecr_repo: satubinha-migrate
     steps:
       - uses: actions/checkout@v4
 
@@ -172,74 +156,65 @@ jobs:
           map[migrate]="${{ needs.changes.outputs.migrate }}"
           echo "value=${map[${{ matrix.service }}]}" >> $GITHUB_OUTPUT
 
+      - name: Calcular short SHA
+        if: steps.changed.outputs.value == 'true'
+        id: sha
+        run: echo "short=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
       - name: Configure AWS credentials via OIDC
+        if: steps.changed.outputs.value == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
           role-session-name: GitHubActions-${{ github.run_id }}
 
-      - name: Verificar imagem no ECR
-        id: check-ecr
-        uses: mnmandahalf/check-ecr-image-exists@v0.1.5
-        with:
-          repository-name: 'satubinha-app-img-stables'
-          image-tag: '${{ matrix.service }}-v${{ needs.release.outputs.version }}'
-          region: 'us-east-1'
-
-      - name: Determinar acao
-        id: action
-        run: |
-          IMAGE_EXISTS="${{ steps.check-ecr.outputs.image-exists }}"
-          CHANGED="${{ steps.changed.outputs.value }}"
-
-          if [[ "$IMAGE_EXISTS" == "1" && "$CHANGED" != "true" ]]; then
-            echo "Imagem ${{ matrix.service }}-v${{ needs.release.outputs.version }} ja existe e sem alteracoes — ignorando."
-            echo "build=false" >> $GITHUB_OUTPUT
-          elif [[ "$IMAGE_EXISTS" == "1" && "$CHANGED" == "true" ]]; then
-            echo "Imagem existe mas ha alteracoes — nova versao sera gerada pelo semantic-release no proximo ciclo."
-            echo "build=false" >> $GITHUB_OUTPUT
-          else
-            echo "Imagem nao encontrada no ECR — iniciando build."
-            echo "build=true" >> $GITHUB_OUTPUT
-          fi
-
       - name: Instalar Cosign
-        if: steps.action.outputs.build == 'true'
+        if: steps.changed.outputs.value == 'true'
         uses: sigstore/cosign-installer@v3.8.1
 
-      - name: Build e push imagem
-        if: steps.action.outputs.build == 'true'
+      - name: Build imagem
+        if: steps.changed.outputs.value == 'true'
+        run: |
+          docker build \
+            -t ${{ matrix.ecr_repo }}:sha-${{ steps.sha.outputs.short }} \
+            -f ${{ matrix.dockerfile }} ${{ matrix.context }}
+
+      - name: Trivy - scan imagem
+        if: steps.changed.outputs.value == 'true'
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: '${{ matrix.ecr_repo }}:sha-${{ steps.sha.outputs.short }}'
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      - name: Push e assinar imagem
+        if: steps.changed.outputs.value == 'true'
         env:
           ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-          ECR_REPOSITORY: satubinha-app-img-stables
-          SERVICE: ${{ matrix.service }}
-          VERSION: ${{ needs.release.outputs.version }}
+          ECR_REPOSITORY: ${{ matrix.ecr_repo }}
+          SHORT_SHA: ${{ steps.sha.outputs.short }}
         run: |
-          VERSION_TAG="$SERVICE-v$VERSION"
-          LATEST_TAG="$SERVICE-latest"
+          SHA_TAG="sha-$SHORT_SHA"
 
           aws ecr get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin $ECR_REGISTRY
 
-          docker build \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG \
-            -f ${{ matrix.dockerfile }} ${{ matrix.context }}
-
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
+          docker tag $ECR_REPOSITORY:$SHA_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG
 
           IMAGE_DIGEST=$(aws ecr batch-get-image \
             --repository-name $ECR_REPOSITORY \
-            --image-ids imageTag=$VERSION_TAG \
+            --image-ids imageTag=$SHA_TAG \
             --query 'images[0].imageId.imageDigest' \
             --output text)
           cosign sign --yes $ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST
 
           aws ssm put-parameter \
-            --name "/satubinha/images/$SERVICE" \
-            --value "v$VERSION" \
+            --name "/satubinha/images/${{ matrix.service }}" \
+            --value "$ECR_REGISTRY/$ECR_REPOSITORY:$SHA_TAG" \
             --type "String" \
             --overwrite \
             --region us-east-1

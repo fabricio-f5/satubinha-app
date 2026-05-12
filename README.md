@@ -144,11 +144,17 @@ Obtenha uma chave gratuita em [openweathermap.org](https://openweathermap.org/ap
 
 ## CI/CD
 
-O pipeline do GitHub Actions é acionado em push para `main` e realiza:
+O pipeline do GitHub Actions é acionado em push para `main` (ou manualmente via `workflow_dispatch`) e realiza:
 
-1. Build das imagens Docker
-2. Execução dos testes da API
-3. Push das imagens para o registry
+1. Testes da API e scan de vulnerabilidades no código-fonte (Trivy FS — `HIGH,CRITICAL`)
+2. Detecção de quais serviços foram alterados
+3. Build da imagem Docker de cada serviço alterado
+4. Scan de segurança na imagem construída (Trivy image — `HIGH,CRITICAL`) — falha antes do push
+5. Push para o Amazon ECR (repositório dedicado por serviço: `satubinha-api`, `satubinha-weather`, etc.)
+6. Assinatura da imagem com Cosign
+7. Atualização do AWS SSM Parameter Store com a URI completa da imagem (`sha-<git-sha>`)
+
+As imagens são tagueadas com o SHA curto do commit (`sha-a3f9c12`), garantindo rastreabilidade e imutabilidade.
 
 ## Estrutura do projeto
 
